@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { notifyOverdue } from "@/lib/email/resend";
+import { teamsNotifyOverdue } from "@/lib/teams/webhook";
 
 /**
  * Escalation tick — evaluates each active rule in `escalation_rules` and emails
@@ -89,6 +90,8 @@ export async function GET(request: NextRequest) {
         if (!mgr?.email) continue;
         const res = await notifyOverdue(mgr.email, `Approval for ${emp.name}`);
         if (res.success) emailed++;
+        // Mirror to Teams (no-op if TEAMS_WEBHOOK_URL unset).
+        await teamsNotifyOverdue(emp.name, `Approval for ${emp.name}`);
       }
     } else if (rule.rule_type === "checkin_overdue") {
       // Active cycle's current quarter window. If today >= window_start + threshold,
@@ -146,6 +149,7 @@ export async function GET(request: NextRequest) {
         matched++;
         const res = await notifyOverdue(emp.email, `${openQuarter.q} check-in`);
         if (res.success) emailed++;
+        await teamsNotifyOverdue(emp.name, `${openQuarter.q} check-in`);
       }
     } else if (rule.rule_type === "submission_reminder") {
       // Employees who don't have a draft/submitted sheet in the active cycle
@@ -183,6 +187,7 @@ export async function GET(request: NextRequest) {
         matched++;
         const res = await notifyOverdue(emp.email, "Goal submission");
         if (res.success) emailed++;
+        await teamsNotifyOverdue(emp.name, "Goal submission");
       }
     }
 

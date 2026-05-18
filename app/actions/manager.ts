@@ -3,6 +3,7 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { notifySheetApproved, notifySheetReturned } from "@/lib/email/resend";
+import { teamsNotifyApproved, teamsNotifyReturned } from "@/lib/teams/webhook";
 import type { ActionResult } from "@/app/actions/goals";
 
 async function getCurrentUserRole() {
@@ -53,7 +54,7 @@ export async function approveGoalSheet(sheetId: string): Promise<ActionResult> {
       new_values: { status: "approved" },
     });
 
-    // Notify employee. Wrapped so a Resend outage never breaks approval.
+    // Notify employee via email + Teams. Wrapped so any outage never breaks approval.
     try {
       const employee = sheet.employee as unknown as { name: string; email: string } | null;
       if (employee?.email) {
@@ -62,8 +63,11 @@ export async function approveGoalSheet(sheetId: string): Promise<ActionResult> {
           sheet.id
         );
       }
-    } catch (emailErr) {
-      console.error("[Email] notifySheetApproved failed:", emailErr);
+      if (employee?.name) {
+        await teamsNotifyApproved({ name: employee.name }, sheet.id);
+      }
+    } catch (notifyErr) {
+      console.error("[Notify] sheet approved fan-out failed:", notifyErr);
     }
 
     revalidatePath("/manager/dashboard");
@@ -110,7 +114,7 @@ export async function returnGoalSheet(sheetId: string, reason: string): Promise<
       new_values: { status: "returned", return_reason: trimmedReason },
     });
 
-    // Notify employee. Wrapped so a Resend outage never breaks the return action.
+    // Notify employee via email + Teams. Wrapped so any outage never breaks the return action.
     try {
       const employee = sheet.employee as unknown as { name: string; email: string } | null;
       if (employee?.email) {
@@ -120,8 +124,11 @@ export async function returnGoalSheet(sheetId: string, reason: string): Promise<
           sheet.id
         );
       }
-    } catch (emailErr) {
-      console.error("[Email] notifySheetReturned failed:", emailErr);
+      if (employee?.name) {
+        await teamsNotifyReturned({ name: employee.name }, trimmedReason, sheet.id);
+      }
+    } catch (notifyErr) {
+      console.error("[Notify] sheet returned fan-out failed:", notifyErr);
     }
 
     revalidatePath("/manager/dashboard");

@@ -3,6 +3,7 @@
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { notifySheetSubmitted } from "@/lib/email/resend";
+import { teamsNotifySubmitted } from "@/lib/teams/webhook";
 import type { GoalFormData } from "@/types";
 
 /**
@@ -253,9 +254,17 @@ export async function createGoalSheet(
               sheetId
             );
           }
+          // Also fan out to Teams (no-op if TEAMS_WEBHOOK_URL is unset).
+          if (profile?.name) {
+            await teamsNotifySubmitted(
+              { name: profile.name },
+              { name: manager?.name ?? "Manager" },
+              sheetId
+            );
+          }
         }
-      } catch (emailErr) {
-        console.error("[Email] notifySheetSubmitted failed:", emailErr);
+      } catch (notifyErr) {
+        console.error("[Notify] sheet submitted fan-out failed:", notifyErr);
       }
     }
 

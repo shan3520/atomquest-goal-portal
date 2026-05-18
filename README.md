@@ -93,12 +93,17 @@ Reporting & Governance:
 
 Good-to-have implemented:
 - Email notifications (Resend) for submit / approve / return / overdue
+- **Microsoft Teams Adaptive Card notifications** via a Teams Workflow webhook
+  — fires on the same events as email + the daily escalation cron. Cards
+  include a deep link straight to the relevant goal sheet. Silently no-ops
+  if `TEAMS_WEBHOOK_URL` is unset, so the demo still runs without Teams
+  configured. See `.env.example` for the 4-click Teams Workflow setup.
 - **Escalation rules** (approval pending, check-in overdue, submission reminder) with admin-configurable thresholds + working Vercel Cron + manual "Run now" button
 - **Analytics** — QoQ trend, status distribution, department completion, manager check-in completion (all real aggregation, no placeholders)
 
 Not implemented:
-- MS Entra ID / Azure AD SSO
-- MS Teams bot / adaptive cards
+- MS Entra ID / Azure AD SSO (uses email/password instead)
+- Full conversational Teams bot (we use one-way Adaptive Cards via Workflow webhook instead — sufficient for the BRD's "Teams bot or adaptive card notifications" requirement)
 
 ---
 
