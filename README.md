@@ -129,7 +129,9 @@ Not implemented:
 │   ├── migrations/            # Schema · RLS · functions
 │   ├── seed.sql               # Initial demo data
 │   └── seed_demo_state.sql    # Idempotent pre-demo patch
-└── atomquest_architecture_diagram.svg
+└── docs/
+    ├── HACKATHON_SUBMISSION.md
+    └── atomquest_architecture_diagram.svg
 ```
 
 ---
