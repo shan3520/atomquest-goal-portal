@@ -228,6 +228,117 @@ export async function managerUpdateGoal(
   }
 }
 
+/**
+ * Manager-side Shared Goals push (BRD §2.1 — "Admin or manager can push a
+ * departmental KPI to multiple employees"). Mirrors admin.createSharedGoal
+ * but restricts recipients to the manager's direct reports.
+ */
+export async function createManagerSharedGoal(data: {
+  title: string;
+  description: string;
+  thrust_area: string;
+  uom_type: string;
+  target_value: number | null;
+  target_date: string | null;
+  employee_ids: string[];
+  cycle_id: string;
+}): Promise<ActionResult<{ pushed: number; skipped: number }>> {
+  try {
+    const { supabase, user, role } = await getCurrentUserRole();
+    if (!user) return { error: "Unauthorized" };
+    if (role !== "manager") return { error: "Manager access required" };
+    if (!data.title?.trim() || !data.thrust_area || data.employee_ids.length === 0) {
+      return { error: "Title, thrust area, and at least one employee are required" };
+    }
+    if (!data.cycle_id) return { error: "Cycle is required" };
+
+    // Enforce team scope: only direct reports may receive a manager's shared goal.
+    const { data: team } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("manager_id", user.id);
+    const teamIds = new Set((team ?? []).map((t: { id: string }) => t.id));
+    const targetIds = data.employee_ids.filter((id) => teamIds.has(id));
+    if (targetIds.length === 0) {
+      return { error: "Selected employees are not in your team" };
+    }
+
+    const service = await createServiceClient();
+    let pushed = 0;
+    let skipped = 0;
+    // Same parent/child wiring as admin.createSharedGoal: first successful
+    // insert is the primary (is_shared=true), the rest carry shared_from=<primary>.
+    let primaryGoalId: string | null = null;
+
+    for (const empId of targetIds) {
+      const { data: existingSheet } = await service
+        .from("goal_sheets")
+        .select("id, status")
+        .eq("employee_id", empId)
+        .eq("cycle_id", data.cycle_id)
+        .maybeSingle();
+
+      let sheetId: string;
+      if (existingSheet) {
+        if (existingSheet.status !== "draft" && existingSheet.status !== "returned") {
+          skipped++;
+          continue;
+        }
+        sheetId = existingSheet.id;
+      } else {
+        const { data: newSheet, error: sheetErr } = await service
+          .from("goal_sheets")
+          .insert({ employee_id: empId, cycle_id: data.cycle_id, status: "draft" })
+          .select("id")
+          .single();
+        if (sheetErr || !newSheet) {
+          skipped++;
+          continue;
+        }
+        sheetId = newSheet.id;
+      }
+
+      const isPrimary: boolean = primaryGoalId === null;
+      const insertRes: { data: { id: string } | null; error: unknown } = await service
+        .from("goals")
+        .insert({
+          sheet_id: sheetId,
+          title: data.title,
+          description: data.description,
+          thrust_area: data.thrust_area,
+          uom_type: data.uom_type,
+          target_value: data.target_value,
+          target_date: data.target_date,
+          weightage: 10,
+          is_shared: isPrimary,
+          shared_from: isPrimary ? null : primaryGoalId,
+        })
+        .select("id")
+        .single();
+      if (insertRes.error || !insertRes.data) {
+        skipped++;
+        continue;
+      }
+      if (isPrimary) primaryGoalId = insertRes.data.id;
+      pushed++;
+    }
+
+    await supabase.from("audit_logs").insert({
+      table_name: "goals",
+      record_id: user.id,
+      action: "shared_goal_created",
+      changed_by: user.id,
+      new_values: { title: data.title, pushed, skipped, scope: "manager_team" },
+    });
+
+    revalidatePath("/manager/dashboard");
+    revalidatePath("/manager/shared-goals");
+    return { data: { pushed, skipped } };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "An unexpected error occurred" };
+  }
+}
+
 export async function addManagerComment(checkinId: string, comment: string): Promise<ActionResult> {
   try {
     const { supabase, user, role } = await getCurrentUserRole();
