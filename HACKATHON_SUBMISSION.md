@@ -3,7 +3,7 @@
 ## 1) Submission Deliverables
 
 - Live Demo URL: <add-live-url>
-- Source Code Repository: <add-repo-url>
+- Source Code Repository: https://github.com/shan3520/atomquest-goal-portal
 - Architecture Diagram: atomquest_architecture_diagram.svg
 - Login Credentials:
   - Admin: admin@atomberg.com / Admin@123
