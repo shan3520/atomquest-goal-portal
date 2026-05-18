@@ -2,7 +2,7 @@
 
 ## 1) Submission Deliverables
 
-- Live Demo URL: <add-live-url>
+- Live Demo URL: https://atomquest-goal-portal-lime.vercel.app
 - Source Code Repository: https://github.com/shan3520/atomquest-goal-portal
 - Architecture Diagram: atomquest_architecture_diagram.svg
 - Login Credentials:
