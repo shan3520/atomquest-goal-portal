@@ -2,7 +2,7 @@
 
 import { createClient, createServiceClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-import { notifySheetSubmitted } from "@/lib/email/resend";
+import { notifySheetSubmitted, notifySheetSubmittedReceipt } from "@/lib/email/resend";
 import { teamsNotifySubmitted } from "@/lib/teams/webhook";
 import type { GoalFormData } from "@/types";
 
@@ -231,7 +231,8 @@ export async function createGoalSheet(
       return { error: updErr.message };
     }
 
-    // Notify manager on submit. Wrapped so a Resend outage never breaks the action.
+    // Notify manager + employee + Teams on submit. Wrapped so a Resend or
+    // Teams outage never breaks the action.
     if (submit) {
       try {
         const { data: profile } = await supabase
@@ -239,6 +240,15 @@ export async function createGoalSheet(
           .select("name, manager_id")
           .eq("id", user.id)
           .single();
+
+        // Employee receipt: closes the "did it go through?" loop for the
+        // submitter. Fires whether or not a manager is configured.
+        if (profile?.name && user.email) {
+          await notifySheetSubmittedReceipt(
+            { name: profile.name, email: user.email },
+            sheetId
+          );
+        }
 
         if (profile?.manager_id) {
           const { data: manager } = await supabase

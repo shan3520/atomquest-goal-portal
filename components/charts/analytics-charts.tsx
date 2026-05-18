@@ -5,6 +5,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell, BarChart, Bar,
 } from "recharts";
+import { CHART, CHART_TOOLTIP_STYLE } from "@/lib/utils/chart-colors";
 
 interface AnalyticsData {
   trendData: { quarter: string; score: number }[];
@@ -13,14 +14,12 @@ interface AnalyticsData {
   managerData: { manager: string; checkins: number; total: number }[];
 }
 
-const COLORS = ["#f59e0b", "#10b981", "#3b82f6", "#ef4444", "#8b5cf6"];
-
 export function AnalyticsCharts({ data }: { data: AnalyticsData }) {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold">Analytics</h1>
-        <p className="text-muted-foreground mt-1">Organization-wide performance insights</p>
+        <h1 className="text-2xl font-semibold tracking-tight">Analytics</h1>
+        <p className="text-muted-foreground mt-1 text-sm">Organization-wide performance insights</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -30,20 +29,20 @@ export function AnalyticsCharts({ data }: { data: AnalyticsData }) {
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={data.trendData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.25 0.02 270)" />
-                <XAxis dataKey="quarter" stroke="oklch(0.6 0.01 270)" fontSize={12} />
-                <YAxis stroke="oklch(0.6 0.01 270)" fontSize={12} />
-                <Tooltip
-                  contentStyle={{
-                    background: "oklch(0.19 0.02 270)",
-                    border: "1px solid oklch(0.28 0.025 270)",
-                    borderRadius: "8px",
-                    color: "oklch(0.95 0.005 270)",
-                  }}
-                />
+                <CartesianGrid strokeDasharray="3 3" stroke={CHART.grid} />
+                <XAxis dataKey="quarter" stroke={CHART.axis} fontSize={12} />
+                <YAxis stroke={CHART.axis} fontSize={12} />
+                <Tooltip contentStyle={CHART_TOOLTIP_STYLE} />
                 <Legend />
-                <Line type="monotone" dataKey="score" name="Avg Score" stroke="#f59e0b"
-                  strokeWidth={2} dot={{ fill: "#f59e0b", r: 4 }} activeDot={{ r: 6 }} />
+                <Line
+                  type="monotone"
+                  dataKey="score"
+                  name="Avg score"
+                  stroke={CHART.amber}
+                  strokeWidth={2}
+                  dot={{ fill: CHART.amber, r: 4 }}
+                  activeDot={{ r: 6 }}
+                />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
@@ -79,17 +78,12 @@ export function AnalyticsCharts({ data }: { data: AnalyticsData }) {
                           const pct = total > 0 ? Math.round((n / total) * 100) : 0;
                           return [`${n} (${pct}%)`, String(name ?? "")];
                         }) as never}
-                        contentStyle={{
-                          background: "oklch(0.19 0.02 270)",
-                          border: "1px solid oklch(0.28 0.025 270)",
-                          borderRadius: "8px",
-                          color: "oklch(0.95 0.005 270)",
-                        }}
+                        contentStyle={CHART_TOOLTIP_STYLE}
                       />
                     </PieChart>
                   </ResponsiveContainer>
-                  {/* Custom legend — guaranteed not to overlap the donut. */}
-                  <div className="mt-2 grid grid-cols-3 gap-3 text-xs w-full max-w-md">
+                  {/* Custom legend, never overlaps the donut */}
+                  <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-x-3 gap-y-1.5 text-xs w-full max-w-md">
                     {data.statusData.map((entry) => {
                       const pct = total > 0 ? Math.round((entry.value / total) * 100) : 0;
                       return (
@@ -119,18 +113,16 @@ export function AnalyticsCharts({ data }: { data: AnalyticsData }) {
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={data.deptData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.25 0.02 270)" />
-                <XAxis dataKey="department" stroke="oklch(0.6 0.01 270)" fontSize={12} />
-                <YAxis stroke="oklch(0.6 0.01 270)" fontSize={12} domain={[0, 100]} unit="%" />
-                <Tooltip
-                  contentStyle={{
-                    background: "oklch(0.19 0.02 270)",
-                    border: "1px solid oklch(0.28 0.025 270)",
-                    borderRadius: "8px",
-                    color: "oklch(0.95 0.005 270)",
-                  }}
+                <CartesianGrid strokeDasharray="3 3" stroke={CHART.grid} />
+                <XAxis dataKey="department" stroke={CHART.axis} fontSize={12} />
+                <YAxis stroke={CHART.axis} fontSize={12} domain={[0, 100]} unit="%" />
+                <Tooltip contentStyle={CHART_TOOLTIP_STYLE} />
+                <Bar
+                  dataKey="completion"
+                  name="Completion %"
+                  fill={CHART.amber}
+                  radius={[4, 4, 0, 0]}
                 />
-                <Bar dataKey="completion" name="Completion %" fill="#f59e0b" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -142,20 +134,23 @@ export function AnalyticsCharts({ data }: { data: AnalyticsData }) {
           <CardContent>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={data.managerData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.25 0.02 270)" />
-                <XAxis dataKey="manager" stroke="oklch(0.6 0.01 270)" fontSize={12} />
-                <YAxis stroke="oklch(0.6 0.01 270)" fontSize={12} />
-                <Tooltip
-                  contentStyle={{
-                    background: "oklch(0.19 0.02 270)",
-                    border: "1px solid oklch(0.28 0.025 270)",
-                    borderRadius: "8px",
-                    color: "oklch(0.95 0.005 270)",
-                  }}
-                />
+                <CartesianGrid strokeDasharray="3 3" stroke={CHART.grid} />
+                <XAxis dataKey="manager" stroke={CHART.axis} fontSize={12} />
+                <YAxis stroke={CHART.axis} fontSize={12} />
+                <Tooltip contentStyle={CHART_TOOLTIP_STYLE} />
                 <Legend />
-                <Bar dataKey="checkins" name="Completed" fill="#10b981" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="total" name="Total" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                <Bar
+                  dataKey="checkins"
+                  name="Completed"
+                  fill={CHART.emerald}
+                  radius={[4, 4, 0, 0]}
+                />
+                <Bar
+                  dataKey="total"
+                  name="Total"
+                  fill={CHART.indigo}
+                  radius={[4, 4, 0, 0]}
+                />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>

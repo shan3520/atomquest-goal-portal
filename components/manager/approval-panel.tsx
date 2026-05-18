@@ -44,6 +44,7 @@ export function ApprovalPanel({ sheet }: ApprovalPanelProps) {
   const [loading, setLoading] = useState(false);
   const [commentGoalId, setCommentGoalId] = useState<string | null>(null);
   const [comment, setComment] = useState("");
+  const [commentSaving, setCommentSaving] = useState(false);
   // Inline-edit state. Per BRD §2.1 the manager can edit target / weightage
   // while the sheet is `submitted`. We keep one goal in edit mode at a time
   // so the changes you stage are obvious.
@@ -132,14 +133,18 @@ export function ApprovalPanel({ sheet }: ApprovalPanelProps) {
 
   async function handleComment(checkinId: string) {
     if (!comment.trim()) { toast.error("Comment cannot be empty"); return; }
+    if (commentSaving) return; // belt-and-suspenders against double-clicks
+    setCommentSaving(true);
     const result = await addManagerComment(checkinId, comment);
     if (result.error) {
       toast.error(result.error);
+      setCommentSaving(false);
       return;
     }
     toast.success("Comment added");
     setCommentGoalId(null);
     setComment("");
+    setCommentSaving(false);
     router.refresh();
   }
 
@@ -198,8 +203,10 @@ export function ApprovalPanel({ sheet }: ApprovalPanelProps) {
         <Badge className={statusColors[sheet.status]}>
           {sheet.status.charAt(0).toUpperCase() + sheet.status.slice(1)}
         </Badge>
-        <span className="text-sm text-muted-foreground">
-          {sheet.goals?.length || 0} goals · Total weightage: {sheet.goals?.reduce((s, g) => s + g.weightage, 0)}%
+        <span className="text-sm text-muted-foreground tabular-nums">
+          {sheet.goals?.length || 0} goals
+          <span className="mx-2 text-border">·</span>
+          Total weightage: {sheet.goals?.reduce((s, g) => s + g.weightage, 0)}%
         </span>
       </div>
 
@@ -213,8 +220,8 @@ export function ApprovalPanel({ sheet }: ApprovalPanelProps) {
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs text-muted-foreground">#{index + 1}</span>
-                    <Badge variant="outline">{goal.weightage}%</Badge>
+                    <span className="text-xs text-muted-foreground tabular-nums">#{index + 1}</span>
+                    <Badge variant="outline" className="tabular-nums">{goal.weightage}%</Badge>
                     <Badge className={goalStatusColors[goal.status]}>{goal.status.replace("_", " ")}</Badge>
                   </div>
                   <CardTitle className="text-base">{goal.title}</CardTitle>
@@ -319,10 +326,10 @@ export function ApprovalPanel({ sheet }: ApprovalPanelProps) {
                     <div className="space-y-2">
                       {goal.checkins.map((ci) => (
                         <div key={ci.id} className="flex items-center justify-between p-2 rounded-lg bg-secondary/30 text-sm">
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-3 tabular-nums">
                             <Badge variant="outline">{ci.quarter}</Badge>
                             <span>Actual: {ci.actual_value ?? "—"}</span>
-                            <span className={`font-bold ${getScoreColor(ci.computed_score || 0)}`}>
+                            <span className={`font-semibold ${getScoreColor(ci.computed_score || 0)}`}>
                               {formatScore(ci.computed_score)}
                             </span>
                             {ci.manager_comment && (
@@ -340,7 +347,7 @@ export function ApprovalPanel({ sheet }: ApprovalPanelProps) {
                   ) : (
                     <div className="flex items-center gap-2 text-xs text-muted-foreground py-1">
                       <Hourglass className="w-3 h-3" />
-                      No check-ins yet — comments will appear here once the employee submits one.
+                      No check-ins yet. Comments will appear here once the employee submits one.
                     </div>
                   )}
                 </>
@@ -354,7 +361,7 @@ export function ApprovalPanel({ sheet }: ApprovalPanelProps) {
       <AlertDialog open={approveOpen} onOpenChange={setApproveOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Approve Goal Sheet?</AlertDialogTitle>
+            <AlertDialogTitle>Approve this goal sheet?</AlertDialogTitle>
             <AlertDialogDescription>
               This will lock the goal sheet. The employee will not be able to edit goals after approval.
             </AlertDialogDescription>
@@ -373,7 +380,7 @@ export function ApprovalPanel({ sheet }: ApprovalPanelProps) {
       <Dialog open={returnOpen} onOpenChange={setReturnOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Return Goal Sheet</DialogTitle>
+            <DialogTitle>Return goal sheet</DialogTitle>
             <DialogDescription>Provide a reason for returning the sheet.</DialogDescription>
           </DialogHeader>
           <Textarea value={returnReason} onChange={(e) => setReturnReason(e.target.value)}
@@ -382,7 +389,7 @@ export function ApprovalPanel({ sheet }: ApprovalPanelProps) {
             <Button variant="outline" onClick={() => setReturnOpen(false)}>Cancel</Button>
             <Button variant="destructive" onClick={handleReturn} disabled={loading || !returnReason.trim()}>
               {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-              Return Sheet
+              Return sheet
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -392,14 +399,22 @@ export function ApprovalPanel({ sheet }: ApprovalPanelProps) {
       <Dialog open={!!commentGoalId} onOpenChange={() => setCommentGoalId(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Manager Comment</DialogTitle>
+            <DialogTitle>Add manager comment</DialogTitle>
             <DialogDescription>Add feedback for this check-in.</DialogDescription>
           </DialogHeader>
           <Textarea value={comment} onChange={(e) => setComment(e.target.value)}
             placeholder="Your feedback..." />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCommentGoalId(null)}>Cancel</Button>
-            <Button onClick={() => commentGoalId && handleComment(commentGoalId)}>Save Comment</Button>
+            <Button variant="outline" onClick={() => setCommentGoalId(null)} disabled={commentSaving}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => commentGoalId && handleComment(commentGoalId)}
+              disabled={commentSaving || !comment.trim()}
+            >
+              {commentSaving && <Loader2 className="w-4 h-4 mr-2 animate-spin" aria-hidden />}
+              Save comment
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

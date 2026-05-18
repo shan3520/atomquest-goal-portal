@@ -78,7 +78,7 @@ export default function SharedGoalsPage({
     } else {
       const { pushed, skipped } = result.data;
       if (skipped > 0) {
-        toast.success(`Shared goal pushed to ${pushed} employees (${skipped} skipped — sheets locked)`);
+        toast.success(`Shared goal pushed to ${pushed} employees (${skipped} skipped, sheets locked)`);
       } else {
         toast.success(`Shared goal pushed to ${pushed} employees`);
       }
@@ -91,18 +91,17 @@ export default function SharedGoalsPage({
   return (
     <div className="space-y-6 max-w-3xl">
       <div>
-        <h1 className="text-2xl font-bold">{heading}</h1>
-        <p className="text-muted-foreground mt-1">{description}</p>
+        <h1 className="text-2xl font-semibold tracking-tight">{heading}</h1>
+        <p className="text-muted-foreground mt-1 text-sm">{description}</p>
       </div>
 
       <Card className="glass-card">
-        <CardHeader><CardTitle className="text-base">Create Shared Goal</CardTitle></CardHeader>
+        <CardHeader><CardTitle className="text-base">Create shared goal</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label>Goal Cycle</Label>
+            <Label>Goal cycle</Label>
             <Select value={form.cycle_id} onValueChange={(v) => setForm({...form, cycle_id: v ?? ""})}>
               <SelectTrigger>
-                {/* Map id → name in the trigger so the user sees "FY 2025-26" instead of the UUID. */}
                 <SelectValue placeholder="Select cycle">
                   {(value: unknown) => {
                     if (typeof value !== "string" || !value) return "Select cycle";
@@ -113,32 +112,32 @@ export default function SharedGoalsPage({
               <SelectContent>{cycles.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
             </Select>
           </div>
-          <div className="space-y-2"><Label>Goal Title</Label>
+          <div className="space-y-2"><Label>Goal title</Label>
             <Input value={form.title} onChange={(e) => setForm({...form, title: e.target.value})}
-              placeholder="e.g., Achieve 95% Customer Satisfaction" /></div>
+              placeholder="e.g., Achieve 95% customer satisfaction" /></div>
           <div className="space-y-2"><Label>Description</Label>
             <Textarea value={form.description} onChange={(e) => setForm({...form, description: e.target.value})} /></div>
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2"><Label>Thrust Area</Label>
+            <div className="space-y-2"><Label>Thrust area</Label>
               <Select value={form.thrust_area} onValueChange={(v) => setForm({...form, thrust_area: v ?? ""})}>
                 <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
                 <SelectContent>{THRUST_AREAS.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}</SelectContent>
               </Select></div>
-            <div className="space-y-2"><Label>UoM Type</Label>
+            <div className="space-y-2"><Label>Unit of measurement</Label>
               <Select value={form.uom_type} onValueChange={(v) => setForm({...form, uom_type: v ?? "numeric_min"})}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>{UOM_TYPE_OPTIONS.map(o => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
               </Select></div>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2"><Label>Target Value</Label>
+            <div className="space-y-2"><Label>Target value</Label>
               <Input type="number" value={form.target_value} onChange={(e) => setForm({...form, target_value: e.target.value})} /></div>
-            <div className="space-y-2"><Label>Target Date</Label>
+            <div className="space-y-2"><Label>Target date</Label>
               <Input type="date" value={form.target_date} onChange={(e) => setForm({...form, target_date: e.target.value})} /></div>
           </div>
 
           <div className="space-y-2">
-            <Label>Select Employees</Label>
+            <Label>Select employees</Label>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-48 overflow-y-auto p-2 rounded-lg border border-border/50 bg-background/30">
               {employees.filter(e => e.role === "employee").length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-6 col-span-full">
@@ -159,7 +158,7 @@ export default function SharedGoalsPage({
 
           <Button onClick={handleCreate} disabled={loading} className="w-full">
             {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Share2 className="w-4 h-4 mr-2" />}
-            Push Shared Goal
+            Push shared goal
           </Button>
         </CardContent>
       </Card>

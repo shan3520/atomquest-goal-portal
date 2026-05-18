@@ -82,6 +82,8 @@ function buildCard(opts: CardOptions): AdaptiveElement {
   };
 }
 
+let missingWebhookWarned = false;
+
 /**
  * Post an adaptive card to the configured Teams channel.
  * Returns { success: true } when no webhook is configured (graceful no-op)
@@ -91,8 +93,10 @@ export async function sendTeamsCard(
   opts: CardOptions
 ): Promise<{ success: boolean; error?: string }> {
   if (!TEAMS_WEBHOOK_URL) {
-    // No-op silently so the rest of the notification flow proceeds.
-    console.log("[Teams] TEAMS_WEBHOOK_URL not set — skipping Teams notification");
+    if (!missingWebhookWarned) {
+      console.warn("[Teams] TEAMS_WEBHOOK_URL not set, Teams notifications disabled");
+      missingWebhookWarned = true;
+    }
     return { success: true };
   }
   try {

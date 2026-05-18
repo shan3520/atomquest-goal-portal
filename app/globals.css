@@ -1,26 +1,250 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* Atomberg brand colors */
+  --color-brand-navy: #1a1a2e;
+  --color-brand-navy-light: #25253f;
+  --color-brand-navy-dark: #121225;
+  --color-brand-amber: #f59e0b;
+  --color-brand-amber-light: #fbbf24;
+  --color-brand-amber-dark: #d97706;
+  --color-brand-success: #10b981;
+  --color-brand-info: #3b82f6;
+  --color-brand-warning: #f59e0b;
+  --color-brand-danger: #ef4444;
+
+  /* ============================================================
+   * Type scale (product register: fixed rem, ~1.125 ratio).
+   *
+   * Role tokens, not value tokens. Reference these in new components
+   * (e.g. `style={{ fontSize: 'var(--text-h2)' }}`) so the scale is
+   * documented at the design-system level. Existing Tailwind utilities
+   * (text-xs/sm/base/lg/xl/2xl) still work and overlap intentionally.
+   * ============================================================ */
+  --text-caption: 0.75rem;   /* 12px — badges, micro-meta */
+  --text-small: 0.8125rem;   /* 13px — secondary labels, compact rows */
+  --text-body: 0.875rem;     /* 14px — default UI text (dominant) */
+  --text-prose: 1rem;        /* 16px — reading prose, email bodies */
+  --text-h3: 1.125rem;       /* 18px — section/card titles */
+  --text-h2: 1.25rem;        /* 20px — secondary page headers */
+  --text-h1: 1.5rem;         /* 24px — primary page headers */
+  --text-display: 1.875rem;  /* 30px — hero numbers (sparing use) */
+
+  /* Weight roles. Three weights cover every UI tier; load only these. */
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* ===== ATOMBERG DARK THEME (default) ===== */
+:root {
+  --radius: 0.625rem;
+
+  /* Dark navy background */
+  --background: oklch(0.155 0.02 270);
+  --foreground: oklch(0.95 0.005 270);
+
+  /* Card surfaces - slightly elevated navy */
+  --card: oklch(0.19 0.02 270);
+  --card-foreground: oklch(0.95 0.005 270);
+
+  /* Popover */
+  --popover: oklch(0.19 0.02 270);
+  --popover-foreground: oklch(0.95 0.005 270);
+
+  /* Primary = amber/orange accent */
+  --primary: oklch(0.75 0.18 75);
+  --primary-foreground: oklch(0.15 0.02 270);
+
+  /* Secondary = muted navy */
+  --secondary: oklch(0.23 0.025 270);
+  --secondary-foreground: oklch(0.9 0.005 270);
+
+  /* Muted */
+  --muted: oklch(0.22 0.02 270);
+  --muted-foreground: oklch(0.6 0.01 270);
+
+  /* Accent = amber glow */
+  --accent: oklch(0.3 0.04 75);
+  --accent-foreground: oklch(0.95 0.005 270);
+
+  /* Destructive */
+  --destructive: oklch(0.65 0.2 25);
+
+  /* Borders */
+  --border: oklch(0.28 0.025 270);
+  --input: oklch(0.25 0.025 270);
+  --ring: oklch(0.75 0.18 75);
+
+  /* Charts - vibrant palette */
+  --chart-1: oklch(0.75 0.18 75);
+  --chart-2: oklch(0.65 0.15 160);
+  --chart-3: oklch(0.6 0.2 260);
+  --chart-4: oklch(0.7 0.15 330);
+  --chart-5: oklch(0.55 0.2 30);
+
+  /* Sidebar */
+  --sidebar: oklch(0.14 0.025 270);
+  --sidebar-foreground: oklch(0.85 0.005 270);
+  --sidebar-primary: oklch(0.75 0.18 75);
+  --sidebar-primary-foreground: oklch(0.15 0.02 270);
+  --sidebar-accent: oklch(0.22 0.03 270);
+  --sidebar-accent-foreground: oklch(0.95 0.005 270);
+  --sidebar-border: oklch(0.25 0.025 270);
+  --sidebar-ring: oklch(0.75 0.18 75);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    /* Geist OpenType features for a denser, more legible UI:
+     *   cv11 = single-storey zero (disambiguates 0 from O)
+     *   ss03 = alternative one (clearer in tight tabular columns)
+     *   calt = contextual alternates (Geist's default ligatures)
+     * `tabular-nums` is applied on individual elements where digit
+     * alignment matters; we don't force it globally because proportional
+     * digits read better in prose.
+     */
+    font-feature-settings: "cv11", "ss03", "calt";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  html {
+    @apply font-sans;
+  }
+  /* Headings get tighter tracking by default; can be overridden per element. */
+  h1, h2, h3 {
+    letter-spacing: -0.011em;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* ===== Custom scrollbar ===== */
+@layer base {
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: oklch(0.14 0.02 270);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: oklch(0.3 0.03 270);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.4 0.04 270);
+  }
+}
+
+/* ===== Reduced motion =====
+   Respect the OS-level preference. Spinners still need to indicate motion, so
+   we slow them to a near-stop rather than freezing them entirely (a totally
+   frozen spinner reads as "stuck", which is the opposite of "loading"). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .animate-spin {
+    animation-duration: 1.5s !important;
+    animation-iteration-count: infinite !important;
+  }
+}
+
+/* ===== Status badge colors ===== */
+@layer utilities {
+  .status-draft {
+    @apply bg-zinc-700/40 text-zinc-300 border border-zinc-600/50;
+  }
+  .status-submitted {
+    @apply bg-blue-600/20 text-blue-400 border border-blue-500/30;
+  }
+  .status-approved {
+    @apply bg-emerald-600/20 text-emerald-400 border border-emerald-500/30;
+  }
+  .status-returned {
+    @apply bg-red-600/20 text-red-400 border border-red-500/30;
+  }
+  .status-not_started {
+    @apply bg-zinc-700/30 text-zinc-400 border border-zinc-600/40;
+  }
+  .status-on_track {
+    @apply bg-amber-600/20 text-amber-400 border border-amber-500/30;
+  }
+  .status-completed {
+    @apply bg-emerald-600/20 text-emerald-400 border border-emerald-500/30;
+  }
+}
+
+/* ===== Panel surface =====
+   Historically named .glass-card; the class is kept as an alias for in-tree
+   consumers, but the implementation is now a flat, solid surface. No
+   backdrop-filter, no transparency. Slightly brighter than --card so panels
+   read as one elevation step up from the page. */
+@layer utilities {
+  .glass-card {
+    background: oklch(0.205 0.02 270);
+    border: 1px solid oklch(0.27 0.025 270 / 60%);
+  }
+  .glass-card-hover {
+    transition: border-color 150ms ease-out, background-color 150ms ease-out;
+  }
+  .glass-card-hover:hover {
+    background: oklch(0.225 0.02 270);
+    border-color: oklch(0.34 0.03 270 / 70%);
+  }
 }

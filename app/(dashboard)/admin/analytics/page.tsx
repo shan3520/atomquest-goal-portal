@@ -1,19 +1,31 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { AnalyticsCharts } from "@/components/charts/analytics-charts";
+import { STATUS_CHART_COLORS } from "@/lib/utils/chart-colors";
 
 export default async function AnalyticsPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  // Fetch check-ins grouped by quarter for trend
-  const { data: checkins } = await supabase
-    .from("quarterly_checkins")
-    .select("quarter, computed_score");
+  // Single fan-out: every aggregation derives from these four reads. The two
+  // earlier separate quarterly_checkins reads and the standalone goals/profiles
+  // reads collapsed into one Promise.all (was 6 sequential round-trips before).
+  const [
+    { data: allCheckins },
+    { data: allProfiles },
+    { data: allSheets },
+    { data: allGoals },
+  ] = await Promise.all([
+    supabase.from("quarterly_checkins").select("goal_id, quarter, computed_score"),
+    supabase.from("profiles").select("id, name, role, department, manager_id"),
+    supabase.from("goal_sheets").select("id, employee_id, status"),
+    supabase.from("goals").select("id, sheet_id, status"),
+  ]);
 
+  // Trend: average computed_score per quarter
   const quarterScores: Record<string, { total: number; count: number }> = {};
-  (checkins || []).forEach((ci: { quarter: string; computed_score: number | null }) => {
+  (allCheckins || []).forEach((ci: { quarter: string; computed_score: number | null }) => {
     if (ci.computed_score !== null) {
       if (!quarterScores[ci.quarter]) quarterScores[ci.quarter] = { total: 0, count: 0 };
       quarterScores[ci.quarter].total += ci.computed_score;
@@ -21,33 +33,22 @@ export default async function AnalyticsPage() {
     }
   });
 
-  const trendData = ["Q1", "Q2", "Q3", "Q4"].map(q => ({
+  const trendData = ["Q1", "Q2", "Q3", "Q4"].map((q) => ({
     quarter: q,
     score: quarterScores[q] ? Math.round(quarterScores[q].total / quarterScores[q].count) : 0,
   }));
 
-  // Goal status distribution
-  const { data: goals } = await supabase.from("goals").select("status");
+  // Status distribution derived from the same allGoals already fetched
   const statusCounts: Record<string, number> = { not_started: 0, on_track: 0, completed: 0 };
-  (goals || []).forEach((g: { status: string }) => {
+  (allGoals || []).forEach((g: { status: string }) => {
     statusCounts[g.status] = (statusCounts[g.status] || 0) + 1;
   });
 
   const statusData = [
-    { name: "Not Started", value: statusCounts.not_started, color: "#71717a" },
-    { name: "On Track", value: statusCounts.on_track, color: "#f59e0b" },
-    { name: "Completed", value: statusCounts.completed, color: "#10b981" },
+    { name: "Not started", value: statusCounts.not_started, color: STATUS_CHART_COLORS.not_started },
+    { name: "On track", value: statusCounts.on_track, color: STATUS_CHART_COLORS.on_track },
+    { name: "Completed", value: statusCounts.completed, color: STATUS_CHART_COLORS.completed },
   ];
-
-  // Real aggregation — fetch base tables separately and join in JS. Nested
-  // PostgREST filter syntax (e.g. `.eq("sheet.status", ...)`) has been flaky
-  // here, so we keep the queries flat.
-  const [{ data: allProfiles }, { data: allSheets }, { data: allGoals }] =
-    await Promise.all([
-      supabase.from("profiles").select("id, name, role, department, manager_id"),
-      supabase.from("goal_sheets").select("id, employee_id, status"),
-      supabase.from("goals").select("id, sheet_id, status"),
-    ]);
 
   const profilesById = new Map<string, { department: string | null; manager_id: string | null }>();
   (allProfiles || []).forEach((p: { id: string; department: string | null; manager_id: string | null }) => {
@@ -76,11 +77,9 @@ export default async function AnalyticsPage() {
     completion: total === 0 ? 0 : Math.round((completed / total) * 100),
   }));
 
-  // Manager check-in completion — actual check-ins vs. max possible
-  // (team's approved-sheet goals × 4 quarters).
-  const { data: allCheckins } = await supabase
-    .from("quarterly_checkins")
-    .select("goal_id");
+  // Manager check-in completion: actual check-ins vs. max possible
+  // (team's approved-sheet goals × 4 quarters). Uses the already-fetched
+  // allCheckins set; no extra round-trip.
   const checkinCountByGoal = new Map<string, number>();
   (allCheckins || []).forEach((c: { goal_id: string }) => {
     checkinCountByGoal.set(c.goal_id, (checkinCountByGoal.get(c.goal_id) ?? 0) + 1);

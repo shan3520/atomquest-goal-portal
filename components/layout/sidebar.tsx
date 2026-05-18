@@ -31,22 +31,22 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   // Employee
-  { title: "My Dashboard", href: "/dashboard", icon: LayoutDashboard, roles: ["employee"] },
-  { title: "New Goal Sheet", href: "/goals/new", icon: FilePlus, roles: ["employee"] },
-  { title: "My Goals", href: "/goals", icon: FileText, roles: ["employee"] },
+  { title: "Dashboard", href: "/dashboard", icon: LayoutDashboard, roles: ["employee"] },
+  { title: "New goal sheet", href: "/goals/new", icon: FilePlus, roles: ["employee"] },
+  { title: "My goals", href: "/goals", icon: FileText, roles: ["employee"] },
   // Manager
-  { title: "Team Dashboard", href: "/manager/dashboard", icon: LayoutDashboard, roles: ["manager"] },
-  { title: "Team Check-ins", href: "/manager/checkins", icon: CheckCircle, roles: ["manager"] },
-  { title: "Team Shared Goals", href: "/manager/shared-goals", icon: Share2, roles: ["manager"] },
+  { title: "Team", href: "/manager/dashboard", icon: LayoutDashboard, roles: ["manager"] },
+  { title: "Check-ins", href: "/manager/checkins", icon: CheckCircle, roles: ["manager"] },
+  { title: "Shared goals", href: "/manager/shared-goals", icon: Share2, roles: ["manager"] },
   // Admin
-  { title: "Admin Dashboard", href: "/admin/dashboard", icon: LayoutDashboard, roles: ["admin"] },
-  { title: "Goal Cycles", href: "/admin/cycles", icon: Settings, roles: ["admin"] },
-  { title: "User Management", href: "/admin/users", icon: Users, roles: ["admin"] },
-  { title: "Unlock Goals", href: "/admin/goals/unlock", icon: Unlock, roles: ["admin"] },
-  { title: "Shared Goals", href: "/admin/shared-goals", icon: Share2, roles: ["admin"] },
+  { title: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard, roles: ["admin"] },
+  { title: "Goal cycles", href: "/admin/cycles", icon: Settings, roles: ["admin"] },
+  { title: "Users", href: "/admin/users", icon: Users, roles: ["admin"] },
+  { title: "Unlock goals", href: "/admin/goals/unlock", icon: Unlock, roles: ["admin"] },
+  { title: "Shared goals", href: "/admin/shared-goals", icon: Share2, roles: ["admin"] },
   { title: "Reports", href: "/admin/reports", icon: BarChart3, roles: ["admin"] },
   { title: "Analytics", href: "/admin/analytics", icon: BarChart3, roles: ["admin"] },
-  { title: "Audit Trail", href: "/admin/audit", icon: ScrollText, roles: ["admin"] },
+  { title: "Audit trail", href: "/admin/audit", icon: ScrollText, roles: ["admin"] },
   { title: "Escalations", href: "/admin/escalations", icon: Bell, roles: ["admin"] },
 ];
 
@@ -84,8 +84,8 @@ export function Sidebar({ role, userName, collapsed, onToggle, onLogout }: Sideb
         </div>
         {!collapsed && (
           <div className="overflow-hidden">
-            <h1 className="text-sm font-bold gradient-text whitespace-nowrap">AtomQuest</h1>
-            <p className="text-[10px] text-muted-foreground">Goal Portal</p>
+            <h1 className="text-sm font-semibold text-primary whitespace-nowrap tracking-tight">AtomQuest</h1>
+            <p className="text-[10px] text-muted-foreground">Goal portal</p>
           </div>
         )}
       </div>
@@ -101,7 +101,10 @@ export function Sidebar({ role, userName, collapsed, onToggle, onLogout }: Sideb
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+                // min-h-11 = 44px touch target (WCAG 2.5.5 AAA). Vertical padding
+                // shrinks to compensate so visual density stays close to before
+                // on lg screens, while phones get the larger hitbox.
+                "flex items-center gap-3 px-3 py-2 min-h-11 rounded-lg text-sm font-medium transition-all duration-200",
                 isActive
                   ? "bg-primary/15 text-primary border border-primary/20"
                   : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent",
@@ -150,7 +153,7 @@ export function Sidebar({ role, userName, collapsed, onToggle, onLogout }: Sideb
                     size="icon"
                     onClick={onToggle}
                     aria-label="Expand sidebar"
-                    className="shrink-0 h-8 w-8"
+                    className="shrink-0 h-11 w-11"
                   >
                     <ChevronRight className="w-4 h-4" />
                   </Button>
@@ -166,13 +169,13 @@ export function Sidebar({ role, userName, collapsed, onToggle, onLogout }: Sideb
                     size="icon"
                     onClick={onLogout}
                     aria-label="Sign out"
-                    className="shrink-0 h-8 w-8 text-destructive hover:text-destructive"
+                    className="shrink-0 h-11 w-11 text-destructive hover:text-destructive"
                   >
                     <LogOut className="w-4 h-4" />
                   </Button>
                 }
               />
-              <TooltipContent side="right">Sign Out</TooltipContent>
+              <TooltipContent side="right">Sign out</TooltipContent>
             </Tooltip>
           </div>
         ) : (
@@ -184,7 +187,7 @@ export function Sidebar({ role, userName, collapsed, onToggle, onLogout }: Sideb
               className="w-full justify-start gap-2 text-destructive hover:text-destructive hover:bg-destructive/10"
             >
               <LogOut className="w-4 h-4" />
-              Sign Out
+              Sign out
             </Button>
             <Button
               variant="ghost"

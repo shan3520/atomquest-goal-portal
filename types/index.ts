@@ -180,39 +180,39 @@ export const UOM_TYPE_OPTIONS: {
 }[] = [
   {
     value: "numeric_min",
-    label: "Numeric (Higher is Better)",
+    label: "Numeric (higher is better)",
     description: "Achievement increases as actual value goes up",
-    example: "e.g., Revenue target: ₹10Cr — actual ₹8Cr = 80%",
+    example: "e.g., revenue target ₹10Cr, actual ₹8Cr scores 80%",
   },
   {
     value: "numeric_max",
-    label: "Numeric (Lower is Better)",
+    label: "Numeric (lower is better)",
     description: "Achievement increases as actual value goes down",
-    example: "e.g., Defect rate target: 5% — actual 4% = 125% (capped at 100%)",
+    example: "e.g., defect rate target 5%, actual 4% scores 100% (capped)",
   },
   {
     value: "percent_min",
-    label: "Percentage (Higher is Better)",
+    label: "Percentage (higher is better)",
     description: "Percentage target where higher actual is better",
-    example: "e.g., Customer satisfaction target: 90% — actual 85% = 94.4%",
+    example: "e.g., CSAT target 90%, actual 85% scores 94%",
   },
   {
     value: "percent_max",
-    label: "Percentage (Lower is Better)",
+    label: "Percentage (lower is better)",
     description: "Percentage target where lower actual is better",
-    example: "e.g., Attrition target: 10% — actual 8% = 125% (capped at 100%)",
+    example: "e.g., attrition target 10%, actual 8% scores 100% (capped)",
   },
   {
     value: "timeline",
-    label: "Timeline (Date-based)",
+    label: "Timeline (date-based)",
     description: "Score 100% if completed on or before target date, else 0%",
-    example: "e.g., Project deadline: 31 Dec — completed 28 Dec = 100%",
+    example: "e.g., deadline 31 Dec, completed 28 Dec scores 100%",
   },
   {
     value: "zero",
-    label: "Zero Tolerance",
+    label: "Zero tolerance",
     description: "Score 100% only if actual value is exactly 0",
-    example: "e.g., Safety incidents target: 0 — actual 0 = 100%",
+    example: "e.g., safety incidents target 0, actual 0 scores 100%",
   },
 ];
 

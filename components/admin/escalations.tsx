@@ -36,7 +36,7 @@ export default function EscalationsPage({ rules }: { rules: EscalationRule[] }) 
       );
       toast.success(
         totals.matched === 0
-          ? "Escalation tick complete — no overdue items found"
+          ? "Escalation tick complete: no overdue items found"
           : `Escalation tick: ${totals.matched} matched, ${totals.emailed} emailed`
       );
       router.refresh();
@@ -69,7 +69,7 @@ export default function EscalationsPage({ rules }: { rules: EscalationRule[] }) 
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Escalation Rules</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Escalation rules</h1>
           <p className="text-muted-foreground mt-1">Configure automated escalation thresholds</p>
         </div>
         <Button onClick={runNow} disabled={running} variant="outline">
