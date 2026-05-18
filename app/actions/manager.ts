@@ -1,0 +1,252 @@
+"use server";
+
+import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { revalidatePath } from "next/cache";
+import { notifySheetApproved, notifySheetReturned } from "@/lib/email/resend";
+import type { ActionResult } from "@/app/actions/goals";
+
+async function getCurrentUserRole() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { supabase, user: null, role: null as null };
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+  return { supabase, user, role: (profile?.role as string) || null };
+}
+
+export async function approveGoalSheet(sheetId: string): Promise<ActionResult> {
+  try {
+    const { supabase, user, role } = await getCurrentUserRole();
+    if (!user) return { error: "Unauthorized" };
+    if (role !== "manager" && role !== "admin") {
+      return { error: "Only managers and admins can approve sheets" };
+    }
+
+    const { data: sheet } = await supabase
+      .from("goal_sheets")
+      .select("id, employee_id, status, employee:profiles!goal_sheets_employee_id_fkey(name, email)")
+      .eq("id", sheetId)
+      .single();
+    if (!sheet) return { error: "Sheet not found" };
+    if (sheet.status !== "submitted") {
+      return { error: "Only submitted sheets can be approved" };
+    }
+
+    const { error } = await supabase
+      .from("goal_sheets")
+      .update({
+        status: "approved",
+        approved_at: new Date().toISOString(),
+        approved_by: user.id,
+      })
+      .eq("id", sheetId);
+    if (error) return { error: error.message };
+
+    await supabase.from("audit_logs").insert({
+      table_name: "goal_sheets",
+      record_id: sheetId,
+      action: "approved",
+      changed_by: user.id,
+      new_values: { status: "approved" },
+    });
+
+    // Notify employee. Wrapped so a Resend outage never breaks approval.
+    try {
+      const employee = sheet.employee as unknown as { name: string; email: string } | null;
+      if (employee?.email) {
+        await notifySheetApproved(
+          { name: employee.name, email: employee.email },
+          sheet.id
+        );
+      }
+    } catch (emailErr) {
+      console.error("[Email] notifySheetApproved failed:", emailErr);
+    }
+
+    revalidatePath("/manager/dashboard");
+    revalidatePath("/manager/checkins");
+    revalidatePath(`/manager/team/${sheet.employee_id}/goals`);
+    return { data: { success: true } };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "An unexpected error occurred" };
+  }
+}
+
+export async function returnGoalSheet(sheetId: string, reason: string): Promise<ActionResult> {
+  try {
+    const { supabase, user, role } = await getCurrentUserRole();
+    if (!user) return { error: "Unauthorized" };
+    if (role !== "manager" && role !== "admin") {
+      return { error: "Only managers and admins can return sheets" };
+    }
+    if (!reason.trim()) return { error: "Return reason is required" };
+
+    const trimmedReason = reason.trim();
+
+    const { data: sheet } = await supabase
+      .from("goal_sheets")
+      .select("id, employee_id, status, employee:profiles!goal_sheets_employee_id_fkey(name, email)")
+      .eq("id", sheetId)
+      .single();
+    if (!sheet) return { error: "Sheet not found" };
+    if (sheet.status !== "submitted") {
+      return { error: "Only submitted sheets can be returned" };
+    }
+
+    const { error } = await supabase
+      .from("goal_sheets")
+      .update({ status: "returned", return_reason: trimmedReason })
+      .eq("id", sheetId);
+    if (error) return { error: error.message };
+
+    await supabase.from("audit_logs").insert({
+      table_name: "goal_sheets",
+      record_id: sheetId,
+      action: "returned",
+      changed_by: user.id,
+      new_values: { status: "returned", return_reason: trimmedReason },
+    });
+
+    // Notify employee. Wrapped so a Resend outage never breaks the return action.
+    try {
+      const employee = sheet.employee as unknown as { name: string; email: string } | null;
+      if (employee?.email) {
+        await notifySheetReturned(
+          { name: employee.name, email: employee.email },
+          trimmedReason,
+          sheet.id
+        );
+      }
+    } catch (emailErr) {
+      console.error("[Email] notifySheetReturned failed:", emailErr);
+    }
+
+    revalidatePath("/manager/dashboard");
+    revalidatePath(`/manager/team/${sheet.employee_id}/goals`);
+    return { data: { success: true } };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "An unexpected error occurred" };
+  }
+}
+
+/**
+ * Manager inline-edit of a goal during approval.
+ *
+ * Per the BRD §2.1: "Review submitted goals; ability to edit targets / weightages
+ * inline or return for rework." Only allowed while the sheet is in `submitted`
+ * status (i.e. the manager is actively reviewing). The DB trigger
+ * `validate_sheet_weightage` will reject the eventual approval if the manager's
+ * edits leave the sheet outside 100%, so we don't re-validate the sum here.
+ */
+export async function managerUpdateGoal(
+  goalId: string,
+  updates: {
+    title?: string;
+    description?: string | null;
+    thrust_area?: string;
+    uom_type?: string;
+    target_value?: number | null;
+    target_date?: string | null;
+    weightage?: number;
+  }
+): Promise<ActionResult> {
+  try {
+    const { supabase, user, role } = await getCurrentUserRole();
+    if (!user) return { error: "Unauthorized" };
+    if (role !== "manager" && role !== "admin") {
+      return { error: "Only managers and admins can edit goals during approval" };
+    }
+
+    // Look up the goal + its sheet + the sheet's owner so we can verify the
+    // manager has authority over this employee AND the sheet is reviewable.
+    const { data: goal } = await supabase
+      .from("goals")
+      .select(
+        "id, sheet_id, weightage, sheet:goal_sheets!inner(id, employee_id, status, employee:profiles!goal_sheets_employee_id_fkey(manager_id))"
+      )
+      .eq("id", goalId)
+      .single();
+    if (!goal) return { error: "Goal not found" };
+
+    const sheet = (goal as unknown as {
+      sheet?: {
+        id: string;
+        employee_id: string;
+        status: string;
+        employee?: { manager_id: string | null };
+      };
+    }).sheet;
+    if (!sheet) return { error: "Sheet not found" };
+    if (sheet.status !== "submitted") {
+      return { error: "Inline edit only allowed while the sheet is under review (submitted)" };
+    }
+    if (role === "manager" && sheet.employee?.manager_id !== user.id) {
+      return { error: "You can only edit goals for your direct reports" };
+    }
+
+    if (updates.weightage !== undefined) {
+      if (updates.weightage < 10) return { error: "Minimum weightage is 10%" };
+      if (updates.weightage > 100) return { error: "Weightage cannot exceed 100%" };
+    }
+    if (updates.title !== undefined && !updates.title.trim()) {
+      return { error: "Title cannot be empty" };
+    }
+
+    // Service client to bypass RLS — ownership and status already verified.
+    const service = await createServiceClient();
+    const patch: Record<string, unknown> = {};
+    if (updates.title !== undefined) patch.title = updates.title;
+    if (updates.description !== undefined) patch.description = updates.description;
+    if (updates.thrust_area !== undefined) patch.thrust_area = updates.thrust_area;
+    if (updates.uom_type !== undefined) patch.uom_type = updates.uom_type;
+    if (updates.target_value !== undefined) patch.target_value = updates.target_value;
+    if (updates.target_date !== undefined) patch.target_date = updates.target_date;
+    if (updates.weightage !== undefined) patch.weightage = updates.weightage;
+
+    const { error: updErr } = await service
+      .from("goals")
+      .update(patch)
+      .eq("id", goalId);
+    if (updErr) return { error: updErr.message };
+
+    await supabase.from("audit_logs").insert({
+      table_name: "goals",
+      record_id: goalId,
+      action: "manager_edit",
+      changed_by: user.id,
+      new_values: patch,
+    });
+
+    revalidatePath(`/manager/team/${sheet.employee_id}/goals`);
+    revalidatePath("/manager/dashboard");
+    return { data: { success: true } };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "An unexpected error occurred" };
+  }
+}
+
+export async function addManagerComment(checkinId: string, comment: string): Promise<ActionResult> {
+  try {
+    const { supabase, user, role } = await getCurrentUserRole();
+    if (!user) return { error: "Unauthorized" };
+    if (role !== "manager" && role !== "admin") {
+      return { error: "Only managers and admins can comment" };
+    }
+
+    const { error } = await supabase
+      .from("quarterly_checkins")
+      .update({ manager_comment: comment, manager_id: user.id })
+      .eq("id", checkinId);
+
+    if (error) return { error: error.message };
+
+    revalidatePath("/manager/dashboard");
+    revalidatePath("/manager/checkins");
+    return { data: { success: true } };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "An unexpected error occurred" };
+  }
+}

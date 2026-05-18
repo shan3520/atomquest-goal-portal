@@ -2,10 +2,16 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { approveGoalSheet, returnGoalSheet, addManagerComment } from "@/app/actions/manager";
+import {
+  approveGoalSheet,
+  returnGoalSheet,
+  addManagerComment,
+  managerUpdateGoal,
+} from "@/app/actions/manager";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -18,10 +24,13 @@ import {
   AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { CheckCircle2, RotateCcw, Loader2, MessageSquare, FileEdit, Hourglass } from "lucide-react";
+import {
+  CheckCircle2, RotateCcw, Loader2, MessageSquare, FileEdit, Hourglass,
+  Pencil, X, Save,
+} from "lucide-react";
 import { formatScore, getScoreColor } from "@/lib/utils/score-calculator";
 import { UOM_TYPE_OPTIONS } from "@/types";
-import type { GoalSheet } from "@/types";
+import type { GoalSheet, Goal } from "@/types";
 
 interface ApprovalPanelProps {
   sheet: GoalSheet;
@@ -35,6 +44,51 @@ export function ApprovalPanel({ sheet }: ApprovalPanelProps) {
   const [loading, setLoading] = useState(false);
   const [commentGoalId, setCommentGoalId] = useState<string | null>(null);
   const [comment, setComment] = useState("");
+  // Inline-edit state. Per BRD §2.1 the manager can edit target / weightage
+  // while the sheet is `submitted`. We keep one goal in edit mode at a time
+  // so the changes you stage are obvious.
+  const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState<Partial<Goal>>({});
+  const [editSaving, setEditSaving] = useState(false);
+  const canEdit = sheet.status === "submitted";
+
+  function startEdit(goal: Goal) {
+    setEditingGoalId(goal.id);
+    setEditDraft({
+      title: goal.title,
+      description: goal.description,
+      thrust_area: goal.thrust_area,
+      uom_type: goal.uom_type,
+      target_value: goal.target_value,
+      target_date: goal.target_date,
+      weightage: goal.weightage,
+    });
+  }
+  function cancelEdit() {
+    setEditingGoalId(null);
+    setEditDraft({});
+  }
+  async function saveEdit(goalId: string) {
+    setEditSaving(true);
+    const result = await managerUpdateGoal(goalId, {
+      title: editDraft.title,
+      description: editDraft.description ?? null,
+      thrust_area: editDraft.thrust_area,
+      uom_type: editDraft.uom_type,
+      target_value: editDraft.target_value ?? null,
+      target_date: editDraft.target_date ?? null,
+      weightage: editDraft.weightage,
+    });
+    setEditSaving(false);
+    if (result.error) {
+      toast.error(result.error);
+      return;
+    }
+    toast.success("Goal updated");
+    setEditingGoalId(null);
+    setEditDraft({});
+    router.refresh();
+  }
 
   const statusColors: Record<string, string> = {
     draft: "status-draft", submitted: "status-submitted",
@@ -152,11 +206,12 @@ export function ApprovalPanel({ sheet }: ApprovalPanelProps) {
       {/* Goals */}
       {sheet.goals?.map((goal, index) => {
         const uomLabel = UOM_TYPE_OPTIONS.find(o => o.value === goal.uom_type)?.label || goal.uom_type;
+        const isEditing = editingGoalId === goal.id;
         return (
           <Card key={goal.id} className="glass-card">
             <CardHeader className="pb-3">
-              <div className="flex items-start justify-between">
-                <div>
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-xs text-muted-foreground">#{index + 1}</span>
                     <Badge variant="outline">{goal.weightage}%</Badge>
@@ -164,15 +219,97 @@ export function ApprovalPanel({ sheet }: ApprovalPanelProps) {
                   </div>
                   <CardTitle className="text-base">{goal.title}</CardTitle>
                 </div>
+                {canEdit && !isEditing && (
+                  <Button size="sm" variant="ghost" onClick={() => startEdit(goal)}>
+                    <Pencil className="w-3 h-3 mr-1" /> Edit
+                  </Button>
+                )}
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
-              {goal.description && <p className="text-sm text-muted-foreground">{goal.description}</p>}
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
-                <div><span className="text-muted-foreground">Area: </span>{goal.thrust_area}</div>
-                <div><span className="text-muted-foreground">UoM: </span>{uomLabel}</div>
-                <div><span className="text-muted-foreground">Target: </span>{goal.target_value ?? goal.target_date ?? "—"}</div>
-              </div>
+              {isEditing ? (
+                <div className="space-y-3 rounded-lg border border-primary/30 p-3 bg-primary/5">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-muted-foreground">Title</label>
+                      <Input
+                        value={editDraft.title ?? ""}
+                        onChange={(e) => setEditDraft({ ...editDraft, title: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground">Weightage (%)</label>
+                      <Input
+                        type="number"
+                        min={10}
+                        max={100}
+                        value={editDraft.weightage ?? 0}
+                        onChange={(e) =>
+                          setEditDraft({ ...editDraft, weightage: Number(e.target.value) || 0 })
+                        }
+                      />
+                    </div>
+                    {goal.uom_type === "timeline" ? (
+                      <div>
+                        <label className="text-xs text-muted-foreground">Target date</label>
+                        <Input
+                          type="date"
+                          value={editDraft.target_date ?? ""}
+                          onChange={(e) =>
+                            setEditDraft({ ...editDraft, target_date: e.target.value || null })
+                          }
+                        />
+                      </div>
+                    ) : (
+                      <div>
+                        <label className="text-xs text-muted-foreground">Target value</label>
+                        <Input
+                          type="number"
+                          value={editDraft.target_value ?? ""}
+                          onChange={(e) =>
+                            setEditDraft({
+                              ...editDraft,
+                              target_value: e.target.value === "" ? null : Number(e.target.value),
+                            })
+                          }
+                        />
+                      </div>
+                    )}
+                    <div className="md:col-span-2">
+                      <label className="text-xs text-muted-foreground">Description</label>
+                      <Textarea
+                        value={editDraft.description ?? ""}
+                        onChange={(e) =>
+                          setEditDraft({ ...editDraft, description: e.target.value })
+                        }
+                        className="min-h-[60px]"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button size="sm" variant="ghost" onClick={cancelEdit} disabled={editSaving}>
+                      <X className="w-3 h-3 mr-1" /> Cancel
+                    </Button>
+                    <Button size="sm" onClick={() => saveEdit(goal.id)} disabled={editSaving}>
+                      {editSaving ? (
+                        <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                      ) : (
+                        <Save className="w-3 h-3 mr-1" />
+                      )}
+                      Save
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {goal.description && <p className="text-sm text-muted-foreground">{goal.description}</p>}
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                    <div><span className="text-muted-foreground">Area: </span>{goal.thrust_area}</div>
+                    <div><span className="text-muted-foreground">UoM: </span>{uomLabel}</div>
+                    <div><span className="text-muted-foreground">Target: </span>{goal.target_value ?? goal.target_date ?? "—"}</div>
+                  </div>
+                </>
+              )}
 
               {/* Check-in data with comment */}
               {sheet.status === "approved" && (
